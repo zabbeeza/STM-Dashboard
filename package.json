@@ -1,0 +1,21 @@
+{
+  "name": "stm-dashboard",
+  "version": "1.0.0",
+  "description": "Real-time Montreal household transit dashboard (STM GTFS + weather + BTC + ticker) as a fixed 16:9 wall display.",
+  "type": "module",
+  "main": "server/index.js",
+  "scripts": {
+    "start": "node server/index.js",
+    "dev": "node --watch server/index.js"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "dependencies": {
+    "adm-zip": "^0.5.16",
+    "dotenv": "^16.4.7",
+    "express": "^4.21.2",
+    "gtfs-realtime-bindings": "^1.1.1"
+  },
+  "license": "MIT"
+}

@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Montreal Transit Dashboard</title>
+  <link rel="icon" href="data:," />
+  <link rel="stylesheet" href="css/styles.css" />
+</head>
+<body>
+  <!-- Fixed 16:9 canvas (1920×1080) scaled to fit the viewport. -->
+  <div id="viewport">
+    <div id="stage">
+
+      <!-- ── Widget bar (macOS-Dashboard style) ───────────────────────────── -->
+      <header id="widget-bar">
+        <section class="widget widget--clock" id="clock-widget">
+          <div class="seg-clock" id="seg-clock" aria-label="clock"></div>
+          <div class="clock-ampm" id="clock-ampm">AM</div>
+        </section>
+
+        <div class="widget-divider"></div>
+
+        <section class="widget widget--weather" id="weather-widget">
+          <div class="weather-icon" id="weather-icon"></div>
+          <div class="weather-main">
+            <div class="weather-temp" id="weather-temp">--°</div>
+            <div class="weather-sub" id="weather-sub">HIGH --° · —</div>
+          </div>
+          <span class="stale-dot" id="weather-stale" hidden></span>
+        </section>
+
+        <div class="widget-divider"></div>
+
+        <section class="widget widget--btc" id="btc-widget">
+          <div class="btc-label" id="btc-label">BTC / USD</div>
+          <div class="btc-row">
+            <div class="btc-price" id="btc-price">$--</div>
+            <svg class="btc-spark" id="btc-spark" viewBox="0 0 160 44" preserveAspectRatio="none"></svg>
+          </div>
+          <span class="stale-dot" id="btc-stale" hidden></span>
+        </section>
+      </header>
+
+      <!-- ── Central dark board with 5 lanes ──────────────────────────────── -->
+      <main id="board">
+        <div id="board-dots" aria-hidden="true"></div>
+        <div id="board-seps" aria-hidden="true"></div>
+        <div id="tabs"></div>
+        <div id="lanes"></div>
+        <span class="stale-dot stale-dot--board" id="departures-stale" hidden></span>
+      </main>
+
+      <!-- ── Ticker ────────────────────────────────────────────────────────── -->
+      <footer id="ticker">
+        <div id="ticker-track"></div>
+      </footer>
+
+    </div>
+  </div>
+
+  <script type="module" src="js/segclock.js"></script>
+  <script type="module" src="js/widgets.js"></script>
+  <script type="module" src="js/lanes.js"></script>
+  <script type="module" src="js/app.js"></script>
+</body>
+</html>
