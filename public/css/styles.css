@@ -40,15 +40,19 @@ html, body {
   background: #ffffff;
 }
 
-/* The fixed design canvas. */
-#stage {
+/* Always exactly 16:9, sized to fit — guarantees uniform scaling, no stretch. */
+#scaler {
   position: relative;
+  width: min(100vw, calc(100vh * 16 / 9));
+  height: min(100vh, calc(100vw * 9 / 16));
+}
+
+/* The fixed design canvas, uniformly scaled by JS to fill #scaler. */
+#stage {
+  position: absolute; top: 0; left: 0;
   width: 1920px; height: 1080px;
-  transform-origin: center center;
-  background:
-    radial-gradient(120% 80% at 50% 0%, #1a1e25 0%, #101317 60%, #0a0c10 100%);
-  border-radius: 18px;
-  box-shadow: 0 0 0 6px #000, 0 30px 80px rgba(0,0,0,0.8);
+  transform-origin: top left;
+  background: #ffffff;           /* white backdrop behind bar / lanes / ticker */
   overflow: hidden;
 }
 
@@ -63,11 +67,12 @@ html, body {
   align-items: stretch;
   padding: 0 30px;
   border-radius: 20px;
+  border: 1px solid rgba(150,170,200,0.55);
   background: linear-gradient(180deg, #ffffff 0%, #f2f5f9 40%, #dfe7f2 78%, #cdd9ea 100%);
   box-shadow:
     inset 0 1px 0 rgba(255,255,255,0.9),
     inset 0 -1px 0 rgba(120,140,170,0.4),
-    0 10px 24px rgba(0,0,0,0.55);
+    0 8px 20px rgba(30,50,90,0.22);
 }
 
 .widget {
@@ -197,13 +202,16 @@ html, body {
     inset 0 0 0 1px rgba(255,255,255,0.03);
   overflow: hidden;
 }
-/* dotted texture */
+/* dotted texture — clearer, denser, slightly larger dots (with a faint
+   highlight underneath for an engraved look). Trapezoid lanes cover these. */
 #board-dots {
   position: absolute; inset: 0;
-  background-image: radial-gradient(rgba(0,0,0,0.28) 1.4px, transparent 1.6px);
-  background-size: 16px 16px;
-  background-position: 8px 8px;
-  opacity: 0.6;
+  background-image:
+    radial-gradient(rgba(0,0,0,0.45) 2.1px, transparent 2.5px),
+    radial-gradient(rgba(255,255,255,0.05) 2.1px, transparent 2.5px);
+  background-size: 13px 13px, 13px 13px;
+  background-position: 6px 6px, 7px 7px;
+  opacity: 1;
   pointer-events: none;
 }
 /* faint separators flanking the NDG column (at 40% and 60%) */
@@ -238,37 +246,23 @@ html, body {
   flex: 1 1 20%;
   height: 100%;
 }
-/* trapezoid shape (clip-path set inline per direction via class).
-   Sits clearly above the dotted board as a lighter slate lane that encloses
-   the boxes in its wide part and tapers to a point in the chevron zone. */
+/* Trapezoid lane shape. Fills the lane; the exact clip-path polygon is computed
+   in JS (lanes.js) so it encloses the boxes with vertical parallel sides, a
+   flat edge flush to the lane top/bottom, and a slanted edge that hugs the
+   soonest bus on one side and protrudes ~1.2 box-heights on the other. */
 .lane-shape {
-  position: absolute; left: 10px; right: 10px;
-  background: linear-gradient(180deg, #4a5464 0%, #39424f 55%, #303845 100%);
+  position: absolute; inset: 0;
+  background: linear-gradient(180deg, #4a5464 0%, #3c4553 55%, #333c49 100%);
   box-shadow:
-    inset 0 2px 0 rgba(255,255,255,0.10),
-    inset 0 0 0 1px rgba(255,255,255,0.06),
-    inset 0 -10px 22px rgba(0,0,0,0.30);
-}
-/* West: wide flat top under the tab, tapers down to a point below the centre. */
-.lane[data-dir="W"] .lane-shape {
-  top: 10px; height: 66%;
-  clip-path: polygon(0 0, 100% 0, 40% 100%, 0 100%);
-}
-/* East: wide flat bottom, tapers up to a point above the centre. */
-.lane[data-dir="E"] .lane-shape {
-  top: 34%; bottom: 10px;
-  clip-path: polygon(60% 0, 100% 0, 100% 100%, 0 100%);
-}
-/* NDG (lone east lane) tapers symmetrically to a centred point. */
-.lane[data-lane="ndg-east"] .lane-shape {
-  top: 34%; bottom: 10px;
-  clip-path: polygon(32% 0, 68% 0, 100% 100%, 0 100%);
+    inset 0 2px 0 rgba(255,255,255,0.12),
+    inset 0 0 0 1px rgba(255,255,255,0.07),
+    inset 0 -12px 26px rgba(0,0,0,0.28);
 }
 
 /* Departure boxes are absolutely positioned by JS around the centre line. */
 .dep-box {
   position: absolute;
-  width: 300px; height: 64px;
+  width: 288px; height: 64px;
   border-radius: 12px;
   display: flex; align-items: center;
   padding: 0 14px;
@@ -277,9 +271,27 @@ html, body {
   background: linear-gradient(180deg, var(--box-neutral) 0%, var(--box-neutral-2) 100%);
   border: 1px solid rgba(255,255,255,0.05);
 }
-.lane[data-dir="W"] .dep-box { left: 14px; }
-.lane[data-dir="E"] .dep-box { right: 14px; }
+.lane[data-dir="W"] .dep-box { left: 16px; }
+.lane[data-dir="E"] .dep-box { right: 16px; }
 .lane[data-lane="ndg-east"] .dep-box { left: 50%; transform: translateX(-50%); }
+
+/* The soonest bus in each lane gets a bright ring so it stands out. Drawn as a
+   pseudo-element so it survives the red-flash box-shadow animation. */
+.dep-box.soonest::after {
+  content: "";
+  position: absolute; inset: -4px;
+  border-radius: 15px;
+  border: 2.5px solid #dcecff;
+  box-shadow:
+    0 0 16px 4px rgba(150,205,255,0.85),
+    inset 0 0 10px rgba(200,225,255,0.45);
+  pointer-events: none;
+  animation: soonest-pulse 1.4s ease-in-out infinite;
+}
+@keyframes soonest-pulse {
+  0%, 100% { box-shadow: 0 0 12px 3px rgba(150,205,255,0.65), inset 0 0 10px rgba(200,225,255,0.4); }
+  50% { box-shadow: 0 0 22px 6px rgba(180,220,255,0.95), inset 0 0 12px rgba(220,235,255,0.6); }
+}
 
 .dep-box.state-green {
   background: linear-gradient(180deg, var(--box-green) 0%, var(--box-green-2) 100%);
@@ -327,8 +339,8 @@ html, body {
   display: flex; flex-direction: column; align-items: center;
   pointer-events: none;
 }
-.lane[data-dir="W"] .lane-chevrons { top: calc(var(--center, 48%) + 8px); }
-.lane[data-dir="E"] .lane-chevrons { top: calc(var(--center, 48%) - 74px); }
+.lane[data-dir="W"] .lane-chevrons { top: calc(var(--center, 48%) + 42px); }
+.lane[data-dir="E"] .lane-chevrons { top: calc(var(--center, 48%) - 100px); }
 .chev {
   width: 40px; height: 18px; opacity: 0.5;
 }

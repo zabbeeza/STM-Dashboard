@@ -5,11 +5,14 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Montreal Transit Dashboard</title>
   <link rel="icon" href="data:," />
-  <link rel="stylesheet" href="css/styles.css?v=2" />
+  <link rel="stylesheet" href="css/styles.css?v=3" />
 </head>
 <body>
-  <!-- Fixed 16:9 canvas (1920×1080) scaled to fit the viewport. -->
+  <!-- Fixed 16:9 canvas (1920×1080) scaled to fit the viewport.
+       #scaler is always exactly 16:9 (sized by CSS min()), and #stage is
+       uniformly scaled to fill it, so the layout can never stretch. -->
   <div id="viewport">
+    <div id="scaler">
     <div id="stage">
 
       <!-- ── Widget bar (macOS-Dashboard style) ───────────────────────────── -->
@@ -56,6 +59,7 @@
         <div id="ticker-track"></div>
       </footer>
 
+    </div>
     </div>
   </div>
 

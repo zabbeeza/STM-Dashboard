@@ -9,8 +9,10 @@ import { buildBoard, updateDepartures } from './lanes.js';
 
 // ── Fit the 1920×1080 stage into the viewport ────────────────────────────────
 function fitStage() {
+  const scaler = document.getElementById('scaler');
   const stage = document.getElementById('stage');
-  const s = Math.min(window.innerWidth / 1920, window.innerHeight / 1080);
+  // #scaler is locked to 16:9 by CSS, so scaling by its width is always uniform.
+  const s = scaler.clientWidth / 1920;
   stage.style.transform = `scale(${s})`;
 }
 window.addEventListener('resize', fitStage);
