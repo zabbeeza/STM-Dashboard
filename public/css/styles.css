@@ -302,11 +302,11 @@ html, body {
 .dep-box.state-red {
   background: linear-gradient(180deg, var(--box-red) 0%, var(--box-red-2) 100%);
   border-color: rgba(255,120,120,0.28);
-  animation: flash-red 1s steps(1,end) infinite;
+  animation: pulse-red 2.4s ease-in-out infinite;
 }
-@keyframes flash-red {
-  0%, 50% { box-shadow: 0 0 18px rgba(255,60,60,0.55), 0 6px 14px rgba(0,0,0,0.4); filter: brightness(1.15); }
-  50.01%, 100% { box-shadow: 0 6px 14px rgba(0,0,0,0.4); filter: brightness(0.82); }
+@keyframes pulse-red {
+  0%, 100% { box-shadow: 0 6px 14px rgba(0,0,0,0.4); filter: brightness(0.92); }
+  50% { box-shadow: 0 0 22px rgba(255,70,70,0.55), 0 6px 14px rgba(0,0,0,0.4); filter: brightness(1.12); }
 }
 .dep-box.leaving { opacity: 0; }
 .lane[data-dir="W"] .dep-box.leaving { transform: translateY(60px) scale(0.9); }
