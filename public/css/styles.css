@@ -1,0 +1,397 @@
+/* ═══════════════════════════════════════════════════════════════════════════
+   Montreal Transit Dashboard — fixed 1920×1080 canvas, scaled to viewport.
+   Coordinates below are authored in the 1920×1080 design space; #stage is
+   scaled by JS so the layout never changes, only its size.
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+:root {
+  --board-bg: #2b3038;
+  --board-bg-2: #23272e;
+  --lane: #333944;
+  --lane-edge: #3d4552;
+  --box-neutral: #2f3947;
+  --box-neutral-2: #273041;
+  --box-green: #1f6b3a;
+  --box-green-2: #17532c;
+  --box-red: #7a2222;
+  --box-red-2: #5c1717;
+  --tab-blue: #3d6aa8;
+  --tab-blue-2: #2f5288;
+  --amber: #ffb32b;
+  --amber-dim: #4a2f08;
+  --btc-blue: #3d7be0;
+  --text: #e7edf5;
+  --text-dim: #9aa6b6;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+html, body {
+  width: 100%; height: 100%;
+  background: #0a0c10;
+  overflow: hidden;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  color: var(--text);
+}
+
+#viewport {
+  width: 100vw; height: 100vh;
+  display: flex; align-items: center; justify-content: center;
+  background: #08090c;
+}
+
+/* The fixed design canvas. */
+#stage {
+  position: relative;
+  width: 1920px; height: 1080px;
+  transform-origin: center center;
+  background:
+    radial-gradient(120% 80% at 50% 0%, #1a1e25 0%, #101317 60%, #0a0c10 100%);
+  border-radius: 18px;
+  box-shadow: 0 0 0 6px #000, 0 30px 80px rgba(0,0,0,0.8);
+  overflow: hidden;
+}
+
+/* ─────────────────────────────────────────────────────────────────────────
+   Widget bar
+   ───────────────────────────────────────────────────────────────────────── */
+#widget-bar {
+  position: absolute;
+  top: 28px; left: 26px; right: 26px;
+  height: 150px;
+  display: flex;
+  align-items: stretch;
+  padding: 0 30px;
+  border-radius: 20px;
+  background: linear-gradient(180deg, #ffffff 0%, #f2f5f9 40%, #dfe7f2 78%, #cdd9ea 100%);
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,0.9),
+    inset 0 -1px 0 rgba(120,140,170,0.4),
+    0 10px 24px rgba(0,0,0,0.55);
+}
+
+.widget {
+  display: flex;
+  align-items: center;
+  position: relative;
+}
+.widget--clock { flex: 0 0 340px; justify-content: flex-start; gap: 14px; }
+.widget--weather { flex: 1 1 auto; justify-content: center; gap: 26px; }
+.widget--btc { flex: 0 0 380px; justify-content: flex-end; }
+
+.widget-divider {
+  width: 1px;
+  margin: 26px 0;
+  background: linear-gradient(180deg, rgba(150,165,190,0) 0%, rgba(120,140,170,0.6) 50%, rgba(150,165,190,0) 100%);
+  box-shadow: 1px 0 0 rgba(255,255,255,0.7);
+}
+
+/* ── Seven-segment clock ─────────────────────────────────────────────────── */
+.widget--clock {
+  padding: 0;
+}
+.seg-clock {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 16px 22px;
+  border-radius: 14px;
+  background: linear-gradient(180deg, #1a1d22 0%, #0c0e11 100%);
+  box-shadow:
+    inset 0 3px 10px rgba(0,0,0,0.9),
+    inset 0 -1px 0 rgba(255,255,255,0.05),
+    0 1px 0 rgba(255,255,255,0.6);
+  margin-left: 4px;
+}
+.clock-ampm {
+  font-size: 26px;
+  font-weight: 700;
+  letter-spacing: 2px;
+  color: #6b7686;
+  align-self: flex-end;
+  padding-bottom: 20px;
+}
+
+/* Each digit is a 7-segment cell. */
+.seg-digit {
+  position: relative;
+  width: 52px; height: 92px;
+}
+.seg {
+  position: absolute;
+  background: var(--amber);
+  border-radius: 3px;
+  opacity: 0.12;                 /* "off" ghost segment */
+  transition: opacity 0.12s linear;
+  box-shadow: 0 0 6px rgba(255,179,43,0.0);
+}
+.seg.on {
+  opacity: 1;
+  box-shadow: 0 0 10px rgba(255,179,43,0.55);
+}
+/* horizontal segments */
+.seg.a, .seg.g, .seg.d { height: 9px; left: 8px; right: 8px; }
+.seg.a { top: 2px; }
+.seg.g { top: 41px; }
+.seg.d { top: 80px; }
+/* vertical segments */
+.seg.b, .seg.c, .seg.e, .seg.f { width: 9px; height: 36px; }
+.seg.f { top: 8px; left: 2px; }
+.seg.b { top: 8px; right: 2px; }
+.seg.e { top: 48px; left: 2px; }
+.seg.c { top: 48px; right: 2px; }
+
+.seg-colon {
+  position: relative;
+  width: 16px; height: 92px;
+}
+.seg-colon::before, .seg-colon::after {
+  content: ""; position: absolute; left: 3px;
+  width: 10px; height: 10px; border-radius: 50%;
+  background: var(--amber);
+  box-shadow: 0 0 8px rgba(255,179,43,0.6);
+}
+.seg-colon::before { top: 30px; }
+.seg-colon::after { top: 56px; }
+.seg-colon.blink-off::before, .seg-colon.blink-off::after { opacity: 0.12; box-shadow: none; }
+
+/* ── Weather ─────────────────────────────────────────────────────────────── */
+.weather-icon { width: 92px; height: 72px; flex: 0 0 auto; }
+.weather-main { display: flex; flex-direction: column; align-items: flex-start; }
+.weather-temp {
+  font-size: 74px; font-weight: 300; line-height: 0.9;
+  color: #2b2f36; letter-spacing: -2px;
+}
+.weather-sub {
+  font-size: 19px; font-weight: 600; letter-spacing: 1.5px;
+  color: #5a6270; margin-top: 6px;
+  font-variant: small-caps; text-transform: uppercase;
+}
+
+/* ── BTC ─────────────────────────────────────────────────────────────────── */
+.widget--btc { flex-direction: column; align-items: flex-end; justify-content: center; }
+.btc-label {
+  font-size: 18px; font-weight: 700; letter-spacing: 3px;
+  color: #6a7280; text-transform: uppercase;
+}
+.btc-row { display: flex; align-items: center; gap: 18px; margin-top: 4px; }
+.btc-price {
+  font-size: 44px; font-weight: 800; letter-spacing: -1px;
+  color: var(--btc-blue);
+}
+.btc-spark { width: 160px; height: 44px; }
+.btc-spark polyline { fill: none; stroke: var(--btc-blue); stroke-width: 2.5; stroke-linejoin: round; stroke-linecap: round; }
+
+/* ─────────────────────────────────────────────────────────────────────────
+   Central board
+   ───────────────────────────────────────────────────────────────────────── */
+#board {
+  position: absolute;
+  top: 196px; left: 26px; right: 26px; bottom: 116px;
+  border-radius: 16px;
+  background:
+    linear-gradient(180deg, var(--board-bg) 0%, var(--board-bg-2) 100%);
+  box-shadow:
+    inset 0 3px 12px rgba(0,0,0,0.6),
+    inset 0 -2px 8px rgba(0,0,0,0.5),
+    inset 0 0 0 1px rgba(255,255,255,0.03);
+  overflow: hidden;
+}
+/* dotted texture */
+#board-dots {
+  position: absolute; inset: 0;
+  background-image: radial-gradient(rgba(0,0,0,0.28) 1.4px, transparent 1.6px);
+  background-size: 16px 16px;
+  background-position: 8px 8px;
+  opacity: 0.6;
+  pointer-events: none;
+}
+/* faint separators flanking the NDG column (at 40% and 60%) */
+#board-seps { position: absolute; inset: 0; pointer-events: none; }
+#board-seps::before, #board-seps::after {
+  content: ""; position: absolute; top: 18px; bottom: 18px; width: 2px;
+  background: linear-gradient(180deg, rgba(0,0,0,0) 0%, rgba(0,0,0,0.35) 20%, rgba(0,0,0,0.35) 80%, rgba(0,0,0,0) 100%);
+  box-shadow: 1px 0 0 rgba(255,255,255,0.03);
+}
+#board-seps::before { left: 40%; }
+#board-seps::after { left: 60%; }
+
+/* Section tabs hanging from the top edge */
+#tabs { position: absolute; inset: 0; pointer-events: none; z-index: 30; }
+#lanes { z-index: 1; }
+.tab {
+  position: absolute; top: -2px;
+  transform: translateX(-50%);
+  padding: 9px 26px 11px;
+  border-radius: 0 0 12px 12px;
+  background: linear-gradient(180deg, var(--tab-blue) 0%, var(--tab-blue-2) 100%);
+  color: #eaf1fb;
+  font-size: 20px; font-weight: 800; letter-spacing: 4px;
+  box-shadow: 0 4px 10px rgba(0,0,0,0.45), inset 0 1px 0 rgba(255,255,255,0.25);
+  text-shadow: 0 1px 1px rgba(0,0,0,0.4);
+}
+
+/* Lanes */
+#lanes { position: absolute; inset: 0; display: flex; }
+.lane {
+  position: relative;
+  flex: 1 1 20%;
+  height: 100%;
+}
+/* trapezoid shape (clip-path set inline per direction via class) */
+.lane-shape {
+  position: absolute; left: 8px; right: 8px;
+  background: linear-gradient(180deg, var(--lane) 0%, var(--lane-edge) 100%);
+  box-shadow: inset 0 0 0 1px rgba(255,255,255,0.04);
+}
+.lane[data-dir="W"] .lane-shape {
+  top: 0; height: var(--center, 48%);
+  clip-path: polygon(0 0, 100% 0, 27% 100%, 0 100%);
+}
+.lane[data-dir="E"] .lane-shape {
+  top: var(--center, 48%); bottom: 0;
+  clip-path: polygon(73% 0, 100% 0, 100% 100%, 0 100%);
+}
+/* NDG (lone east lane) tapers symmetrically and centres */
+.lane[data-lane="ndg-east"] .lane-shape {
+  clip-path: polygon(36.5% 0, 63.5% 0, 100% 100%, 0 100%);
+}
+
+/* Departure boxes are absolutely positioned by JS around the centre line. */
+.dep-box {
+  position: absolute;
+  width: 300px; height: 64px;
+  border-radius: 12px;
+  display: flex; align-items: center;
+  padding: 0 14px;
+  transition: top 0.55s cubic-bezier(.22,.61,.36,1), opacity 0.4s, transform 0.4s;
+  box-shadow: 0 6px 14px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.06);
+  background: linear-gradient(180deg, var(--box-neutral) 0%, var(--box-neutral-2) 100%);
+  border: 1px solid rgba(255,255,255,0.05);
+}
+.lane[data-dir="W"] .dep-box { left: 14px; }
+.lane[data-dir="E"] .dep-box { right: 14px; }
+.lane[data-lane="ndg-east"] .dep-box { left: 50%; transform: translateX(-50%); }
+
+.dep-box.state-green {
+  background: linear-gradient(180deg, var(--box-green) 0%, var(--box-green-2) 100%);
+  border-color: rgba(120,255,160,0.18);
+}
+.dep-box.state-red {
+  background: linear-gradient(180deg, var(--box-red) 0%, var(--box-red-2) 100%);
+  border-color: rgba(255,120,120,0.28);
+  animation: flash-red 1s steps(1,end) infinite;
+}
+@keyframes flash-red {
+  0%, 50% { box-shadow: 0 0 18px rgba(255,60,60,0.55), 0 6px 14px rgba(0,0,0,0.4); filter: brightness(1.15); }
+  50.01%, 100% { box-shadow: 0 6px 14px rgba(0,0,0,0.4); filter: brightness(0.82); }
+}
+.dep-box.leaving { opacity: 0; }
+.lane[data-dir="W"] .dep-box.leaving { transform: translateY(60px) scale(0.9); }
+.lane[data-dir="E"] .dep-box.leaving { transform: translateY(-60px) scale(0.9); }
+
+.dep-badge {
+  flex: 0 0 auto;
+  min-width: 54px; height: 44px;
+  border-radius: 8px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 27px; font-weight: 800; letter-spacing: 0.5px;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.25), 0 2px 4px rgba(0,0,0,0.35);
+}
+.dep-dir {
+  flex: 0 0 auto;
+  margin-left: 10px;
+  font-size: 15px; font-weight: 800; color: var(--text-dim);
+}
+.dep-times {
+  flex: 1 1 auto;
+  display: flex; flex-direction: column; align-items: flex-end;
+  line-height: 1;
+}
+.dep-min { font-size: 30px; font-weight: 800; }
+.dep-min .u { font-size: 17px; font-weight: 700; margin-left: 4px; color: rgba(255,255,255,0.7); }
+.dep-clock { font-size: 18px; font-weight: 600; color: rgba(255,255,255,0.62); margin-top: 5px; }
+
+/* Chevrons at the lane tip, drifting in travel direction. */
+.lane-chevrons {
+  position: absolute;
+  left: 0; right: 0;
+  display: flex; flex-direction: column; align-items: center;
+  pointer-events: none;
+}
+.lane[data-dir="W"] .lane-chevrons { top: calc(var(--center, 48%) + 8px); }
+.lane[data-dir="E"] .lane-chevrons { top: calc(var(--center, 48%) - 74px); }
+.chev {
+  width: 40px; height: 18px; opacity: 0.5;
+}
+.chev svg { width: 100%; height: 100%; display: block; }
+.chev path { stroke: rgba(210,225,245,0.55); stroke-width: 6; fill: none; stroke-linecap: round; stroke-linejoin: round; }
+.lane[data-dir="W"] .lane-chevrons .chev { animation: drift-down 2.4s ease-in-out infinite; }
+.lane[data-dir="E"] .lane-chevrons .chev { animation: drift-up 2.4s ease-in-out infinite; }
+.lane-chevrons .chev:nth-child(2) { animation-delay: 0.3s; }
+.lane-chevrons .chev:nth-child(3) { animation-delay: 0.6s; }
+@keyframes drift-down {
+  0%,100% { opacity: 0.25; transform: translateY(-4px); }
+  50% { opacity: 0.7; transform: translateY(4px); }
+}
+@keyframes drift-up {
+  0%,100% { opacity: 0.25; transform: translateY(4px); }
+  50% { opacity: 0.7; transform: translateY(-4px); }
+}
+
+/* Per-lane journey ETA labels (outside the trapezoid). */
+.lane-eta {
+  position: absolute; left: 16px; right: 16px;
+  color: var(--text-dim);
+  font-size: 15px; letter-spacing: 1px;
+  text-align: center;
+}
+.lane[data-dir="W"] .lane-eta { top: calc(var(--center, 48%) + 96px); }
+.lane[data-dir="E"] .lane-eta { top: calc(var(--center, 48%) - 96px); transform: translateY(-100%); }
+.lane-eta .eta-head {
+  font-size: 13px; font-weight: 700; letter-spacing: 3px; color: #6f7c8d;
+  text-transform: uppercase; margin-bottom: 4px;
+}
+.lane-eta .eta-line { font-weight: 700; color: #cfd9e6; white-space: nowrap; }
+.lane-eta .eta-line .eta-dest { color: #aeb9c8; font-weight: 800; letter-spacing: 1.5px; }
+.lane-eta .eta-line .eta-time { color: #eaf0f8; }
+
+/* ─────────────────────────────────────────────────────────────────────────
+   Ticker
+   ───────────────────────────────────────────────────────────────────────── */
+#ticker {
+  position: absolute;
+  left: 26px; right: 26px; bottom: 30px;
+  height: 62px;
+  border-radius: 12px;
+  background: linear-gradient(180deg, #191c22 0%, #0e1014 100%);
+  box-shadow: inset 0 2px 8px rgba(0,0,0,0.7), 0 1px 0 rgba(255,255,255,0.05);
+  overflow: hidden;
+  display: flex; align-items: center;
+}
+#ticker-track {
+  display: inline-flex; align-items: center;
+  white-space: nowrap;
+  font-family: "Courier New", ui-monospace, monospace;
+  font-size: 26px; font-weight: 700; letter-spacing: 1px;
+  color: #cdd6e2;
+  will-change: transform;
+  animation: marquee 90s linear infinite;
+}
+#ticker-track .tk-item { padding: 0 6px; }
+#ticker-track .tk-sep { color: var(--tab-blue); padding: 0 22px; }
+@keyframes marquee {
+  from { transform: translateX(0); }
+  to { transform: translateX(-50%); }
+}
+
+/* Stale indicators */
+.stale-dot {
+  position: absolute; top: 8px; right: 10px;
+  width: 10px; height: 10px; border-radius: 50%;
+  background: #d8a12a;
+  box-shadow: 0 0 8px rgba(216,161,42,0.8);
+  animation: stale-pulse 1.6s ease-in-out infinite;
+}
+.stale-dot--board { top: 12px; right: 14px; }
+@keyframes stale-pulse { 0%,100% { opacity: 0.4; } 50% { opacity: 1; } }
