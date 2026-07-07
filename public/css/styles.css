@@ -5,8 +5,8 @@
    ═══════════════════════════════════════════════════════════════════════════ */
 
 :root {
-  --board-bg: #2b3038;
-  --board-bg-2: #23272e;
+  --board-bg: #1b202a;
+  --board-bg-2: #10131a;
   --lane: #333944;
   --lane-edge: #3d4552;
   --box-neutral: #2f3947;
@@ -207,19 +207,21 @@ html, body {
 #board-dots {
   position: absolute; inset: 0;
   background-image:
-    radial-gradient(rgba(0,0,0,0.45) 2.1px, transparent 2.5px),
-    radial-gradient(rgba(255,255,255,0.05) 2.1px, transparent 2.5px);
-  background-size: 13px 13px, 13px 13px;
+    radial-gradient(rgba(0,0,0,0.60) 2.3px, transparent 2.7px),
+    radial-gradient(rgba(255,255,255,0.045) 2.3px, transparent 2.7px);
+  background-size: 12px 12px, 12px 12px;
   background-position: 6px 6px, 7px 7px;
   opacity: 1;
   pointer-events: none;
 }
-/* faint separators flanking the NDG column (at 40% and 60%) */
-#board-seps { position: absolute; inset: 0; pointer-events: none; }
+/* white separator lines flanking the NDG column (at 40% and 60%) to
+   differentiate the three streets */
+#board-seps { position: absolute; inset: 0; pointer-events: none; z-index: 5; }
 #board-seps::before, #board-seps::after {
-  content: ""; position: absolute; top: 18px; bottom: 18px; width: 2px;
-  background: linear-gradient(180deg, rgba(0,0,0,0) 0%, rgba(0,0,0,0.35) 20%, rgba(0,0,0,0.35) 80%, rgba(0,0,0,0) 100%);
-  box-shadow: 1px 0 0 rgba(255,255,255,0.03);
+  content: ""; position: absolute; top: 0; bottom: 0; width: 4px;
+  transform: translateX(-50%);
+  background: #ffffff;
+  box-shadow: 0 0 6px rgba(255,255,255,0.5);
 }
 #board-seps::before { left: 40%; }
 #board-seps::after { left: 60%; }

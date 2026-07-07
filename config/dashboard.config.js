@@ -150,7 +150,7 @@ export const pollIntervals = {
 };
 
 /** How many upcoming departures to render per lane. */
-export const maxDeparturesPerLane = 5;
+export const maxDeparturesPerLane = 4;
 
 export default {
   routeColors,

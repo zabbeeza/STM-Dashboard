@@ -6,36 +6,50 @@
 const CENTER_FRAC = 0.50; // shared centre line (fraction of board height)
 const BOX_H = 64;
 const SLOT = 72; // box height + gap
-const BOX_W = 288; // box width (matches CSS)
-const EDGE = 16; // box inset from the lane's outer edge (matches CSS)
-const MARGIN = 10; // how far the trapezoid extends beyond the boxes
 const TOPINSET = 3; // flat side inset from the lane edge
 const PROTRUDE = 1.2 * BOX_H; // slanted-side overshoot past the soonest bus
+const EDGE_INSET = 4; // trapezoid inset at a board edge
+const WHITE_GAP = 7; // trapezoid inset at a street boundary (leaves room for the white line)
+
+// Per-lane horizontal extent of the trapezoid. 'full' = reach the lane edge so
+// it butts against the neighbouring lane in the SAME street; 'edge' = small
+// inset at the board edge; 'gap' = inset at a street boundary (NDG sides) so a
+// white separator line shows through.
+const LANE_EXTENTS = {
+  'monkland-west': { left: 'edge', right: 'full' },
+  'monkland-east': { left: 'full', right: 'gap' },
+  'ndg-east': { left: 'gap', right: 'gap' },
+  'sherbrooke-west': { left: 'gap', right: 'full' },
+  'sherbrooke-east': { left: 'full', right: 'edge' },
+};
+
+function extentX(kind, side, w) {
+  if (kind === 'full') return side === 'L' ? 0 : w;
+  const inset = kind === 'edge' ? EDGE_INSET : WHITE_GAP;
+  return side === 'L' ? inset : w - inset;
+}
 
 // Compute the enclosing trapezoid clip-path for one lane. Vertical parallel
 // sides, a flat edge flush to the lane top (W) / bottom (E), and a slanted edge
-// that hugs the soonest bus on one side and protrudes ~1.2 box-heights on the
-// other — pointing in the travel direction (W → down-left, E → up-right).
+// that hugs the soonest bus on the inner side and protrudes ~1.2 box-heights on
+// the outer side — pointing in the travel direction (W → down-left,
+// E/NDG → up-right). Adjacent lanes in a street reach 'full' so they touch.
 function setLaneClip(ref, dir, laneId) {
   const w = ref.el.clientWidth, h = ref.el.clientHeight;
   if (!w || !h) return;
   const cy = h * CENTER_FRAC;
   const hugTop = cy - BOX_H / 2; // top of the soonest box
   const hugBot = cy + BOX_H / 2; // bottom of the soonest box
-  let xl, xr;
-  if (laneId === 'ndg-east') { const c = w / 2; xl = c - BOX_W / 2; xr = c + BOX_W / 2; }
-  else if (dir === 'W') { xl = EDGE; xr = EDGE + BOX_W; }
-  else { xr = w - EDGE; xl = w - EDGE - BOX_W; }
-  const L = Math.max(2, xl - MARGIN);
-  const R = Math.min(w - 2, xr + MARGIN);
+  const ext = LANE_EXTENTS[laneId] || { left: 'gap', right: 'gap' };
+  const L = extentX(ext.left, 'L', w);
+  const R = extentX(ext.right, 'R', w);
   const shape = ref.el.querySelector('.lane-shape');
   let poly;
-  if (laneId === 'ndg-east') {
-    // symmetric upward peak (lone middle lane)
-    poly = `polygon(${L}px ${h - TOPINSET}px, ${L}px ${hugTop}px, ${w / 2}px ${hugTop - PROTRUDE}px, ${R}px ${hugTop}px, ${R}px ${h - TOPINSET}px)`;
-  } else if (dir === 'W') {
+  if (dir === 'W') {
+    // flat top flush; right hugs soonest, left protrudes down
     poly = `polygon(${L}px ${TOPINSET}px, ${R}px ${TOPINSET}px, ${R}px ${hugBot}px, ${L}px ${hugBot + PROTRUDE}px)`;
   } else {
+    // flat bottom flush; left hugs soonest, right protrudes up (incl. NDG)
     poly = `polygon(${L}px ${hugTop}px, ${R}px ${hugTop - PROTRUDE}px, ${R}px ${h - TOPINSET}px, ${L}px ${h - TOPINSET}px)`;
   }
   shape.style.clipPath = poly;
