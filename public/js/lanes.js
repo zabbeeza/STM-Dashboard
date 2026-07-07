@@ -4,8 +4,8 @@
 // new soonest departure onto the shared centre line.
 
 const CENTER_FRAC = 0.50; // shared centre line (fraction of board height)
-const BOX_H = 64;
-const SLOT = 72; // box height + gap
+const BOX_H = 86;
+const SLOT = 94; // box height + gap
 const TOPINSET = 3; // flat side inset from the lane edge
 const PROTRUDE = 1.2 * BOX_H; // slanted-side overshoot past the soonest bus
 const EDGE_INSET = 4; // trapezoid inset at a board edge
