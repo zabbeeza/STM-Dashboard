@@ -74,13 +74,19 @@ export const lanes = [
       {
         dest: 'CONCORDIA',
         routes: ['103', '162'],
+        // Leg 1 — bus to Villa-Maria (ride time comes from GTFS once gtfsStopId is set).
         toStop: { id: 'VILLA_MARIA_BUS', gtfsStopId: '', name: 'Villa-Maria (bus)' },
         transfer: {
           mode: 'metro',
-          line: 'orange',
-          walkMin: 3,
+          // Real routing: Orange VM → Lionel-Groulx, change to Green, → Guy-Concordia.
+          line: 'orange→green',
           fromStop: { id: 'VILLA_MARIA_METRO', gtfsStopId: '', name: 'Villa-Maria' },
+          via: { id: 'LIONEL_GROULX', gtfsStopId: '', name: 'Lionel-Groulx', line: 'orange→green' },
           toStop: { id: 'GUY_CONCORDIA', gtfsStopId: '', name: 'Guy-Concordia' },
+          // In-vehicle metro time, both legs: Orange VM→Lionel-Groulx (~5) + Green Lionel-Groulx→Guy-Concordia (~3).
+          estMinutes: 8,
+          // Platform transfer at Lionel-Groulx (~2) + walk from Guy-Concordia to Concordia University (~2).
+          walkMin: 4,
         },
       },
     ],
