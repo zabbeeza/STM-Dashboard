@@ -143,7 +143,7 @@ async function getDeparturesSimulated() {
 // Best-effort static-schedule fallback: next departures for a stop straight
 // from stop_times.txt (today, ignoring calendar exceptions — good enough as a
 // stopgap when realtime is unavailable). Returns the same raw shape as live.
-function staticDepartures(gtfsIndex, lane, now, stopId) {
+function staticDepartures(gtfsIndex, lane, now, stopId, limit = maxDeparturesPerLane) {
   const times = gtfsIndex.timesByStop.get(stopId);
   if (!times) return [];
   const midnight = new Date(now); midnight.setHours(0, 0, 0, 0);
@@ -160,7 +160,36 @@ function staticDepartures(gtfsIndex, lane, now, stopId) {
     if (!route || !lane.routes.includes(route)) continue;
     out.push({ route, arrivalMs, tripId: st.trip_id });
   }
-  return out.sort((a, b) => a.arrivalMs - b.arrivalMs).slice(0, maxDeparturesPerLane);
+  return out.sort((a, b) => a.arrivalMs - b.arrivalMs).slice(0, limit);
+}
+
+// Merge realtime predictions with the scheduled trips and screen out duplicates.
+// STM's realtime feed often reports one physical bus under several trip ids a
+// minute or two apart; treating same-route departures closer than MERGE_GAP_MIN
+// as the same bus removes those. Scheduled trips fill the tail so a lane always
+// shows `count` upcoming buses, however far out they are.
+const MERGE_GAP_MIN = 3;
+
+function mergeDepartures(rtList, schedList, count) {
+  // Prefer the realtime entry for a given trip; add scheduled trips not already
+  // present (keyed by trip id so the same trip is never counted twice).
+  const byTrip = new Map();
+  for (const d of rtList) byTrip.set(d.tripId || `rt-${d.route}-${d.arrivalMs}`, d);
+  for (const d of schedList) {
+    const key = d.tripId || `sc-${d.route}-${d.arrivalMs}`;
+    if (!byTrip.has(key)) byTrip.set(key, d);
+  }
+  const sorted = [...byTrip.values()].sort((a, b) => a.arrivalMs - b.arrivalMs);
+  // Collapse same-route buses that fall within MERGE_GAP_MIN of one already kept.
+  const lastByRoute = new Map();
+  const out = [];
+  for (const d of sorted) {
+    const last = lastByRoute.get(d.route);
+    if (last != null && Math.abs(d.arrivalMs - last) < MERGE_GAP_MIN * 60_000) continue;
+    lastByRoute.set(d.route, d.arrivalMs);
+    out.push(d);
+  }
+  return out.slice(0, count);
 }
 
 // ── Live mode ─────────────────────────────────────────────────────────────────
@@ -202,15 +231,17 @@ async function getDeparturesLive() {
 
   const lanes = laneConfig.map((lane) => {
     const stopId = resolveStopId(lane.stop.gtfsStopId);
-    let preds = (rtByStop.get(stopId) || [])
+    const rtPreds = (rtByStop.get(stopId) || [])
       .map((p) => {
         const route = routeShortById.get(p.routeId)?.route_short_name || p.routeId;
         const at = (p.arrival || p.departure) * 1000;
         return { route, arrivalMs: at, tripId: p.tripId };
       })
       .filter((p) => lane.routes.includes(p.route) && p.arrivalMs > now - 1000);
-    // Fall back to the static schedule when realtime has nothing for this stop.
-    if (!preds.length) preds = staticDepartures(gtfsIndex, lane, now, stopId);
+    // Scheduled upcoming trips: used to de-duplicate realtime and to always
+    // fill the lane to `maxDeparturesPerLane`, however far out the buses are.
+    const schedPreds = staticDepartures(gtfsIndex, lane, now, stopId, maxDeparturesPerLane * 4);
+    const preds = mergeDepartures(rtPreds, schedPreds, maxDeparturesPerLane);
     return buildLaneOutput(lane, preds, now, { gtfsIndex });
   });
 
