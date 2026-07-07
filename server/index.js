@@ -24,7 +24,16 @@ const PUBLIC_DIR = path.join(__dirname, '..', 'public');
 const PORT = Number(process.env.PORT || 3000);
 
 const app = express();
-app.use(express.static(PUBLIC_DIR));
+// Never cache the frontend assets: this is an always-on display, and stale
+// cached CSS/JS is the usual reason a pulled change "doesn't take effect".
+app.use(express.static(PUBLIC_DIR, {
+  etag: false,
+  lastModified: false,
+  cacheControl: false,
+  setHeaders(res) {
+    res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0');
+  },
+}));
 
 // ── Config for the frontend (no secrets) ─────────────────────────────────────
 app.get('/api/config', (_req, res) => {

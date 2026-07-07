@@ -6,6 +6,54 @@
 const CENTER_FRAC = 0.50; // shared centre line (fraction of board height)
 const BOX_H = 64;
 const SLOT = 72; // box height + gap
+const TOPINSET = 3; // flat side inset from the lane edge
+const PROTRUDE = 1.2 * BOX_H; // slanted-side overshoot past the soonest bus
+const EDGE_INSET = 4; // trapezoid inset at a board edge
+const WHITE_GAP = 7; // trapezoid inset at a street boundary (leaves room for the white line)
+
+// Per-lane horizontal extent of the trapezoid. 'full' = reach the lane edge so
+// it butts against the neighbouring lane in the SAME street; 'edge' = small
+// inset at the board edge; 'gap' = inset at a street boundary (NDG sides) so a
+// white separator line shows through.
+const LANE_EXTENTS = {
+  'monkland-west': { left: 'edge', right: 'full' },
+  'monkland-east': { left: 'full', right: 'gap' },
+  'ndg-east': { left: 'gap', right: 'gap' },
+  'sherbrooke-west': { left: 'gap', right: 'full' },
+  'sherbrooke-east': { left: 'full', right: 'edge' },
+};
+
+function extentX(kind, side, w) {
+  if (kind === 'full') return side === 'L' ? 0 : w;
+  const inset = kind === 'edge' ? EDGE_INSET : WHITE_GAP;
+  return side === 'L' ? inset : w - inset;
+}
+
+// Compute the enclosing trapezoid clip-path for one lane. Vertical parallel
+// sides, a flat edge flush to the lane top (W) / bottom (E), and a slanted edge
+// that hugs the soonest bus on the inner side and protrudes ~1.2 box-heights on
+// the outer side — pointing in the travel direction (W → down-left,
+// E/NDG → up-right). Adjacent lanes in a street reach 'full' so they touch.
+function setLaneClip(ref, dir, laneId) {
+  const w = ref.el.clientWidth, h = ref.el.clientHeight;
+  if (!w || !h) return;
+  const cy = h * CENTER_FRAC;
+  const hugTop = cy - BOX_H / 2; // top of the soonest box
+  const hugBot = cy + BOX_H / 2; // bottom of the soonest box
+  const ext = LANE_EXTENTS[laneId] || { left: 'gap', right: 'gap' };
+  const L = extentX(ext.left, 'L', w);
+  const R = extentX(ext.right, 'R', w);
+  const shape = ref.el.querySelector('.lane-shape');
+  let poly;
+  if (dir === 'W') {
+    // flat top flush; right hugs soonest, left protrudes down
+    poly = `polygon(${L}px ${TOPINSET}px, ${R}px ${TOPINSET}px, ${R}px ${hugBot}px, ${L}px ${hugBot + PROTRUDE}px)`;
+  } else {
+    // flat bottom flush; left hugs soonest, right protrudes up (incl. NDG)
+    poly = `polygon(${L}px ${hugTop}px, ${R}px ${hugTop - PROTRUDE}px, ${R}px ${h - TOPINSET}px, ${L}px ${h - TOPINSET}px)`;
+  }
+  shape.style.clipPath = poly;
+}
 
 const chevronSvg = (dir) => {
   // down chevron for W, up chevron for E
@@ -61,6 +109,11 @@ export function buildBoard(config) {
     laneEls.set(lane.id, { el, boxLayer, etaEl: el.querySelector('.lane-eta'), boxes: new Map() });
   }
 
+  // Shape the trapezoids once the lanes are laid out (design px are stable).
+  for (const lane of config.lanes) {
+    setLaneClip(laneEls.get(lane.id), lane.direction, lane.id);
+  }
+
   // Section tabs positioned over their spanned columns.
   for (const section of config.sections) {
     const idxs = section.span.map((id) => laneIndex.get(id)).filter((i) => i != null);
@@ -81,8 +134,8 @@ function boxTop(dir, index, laneHeight) {
   return dir === 'W' ? base - index * SLOT : base + index * SLOT;
 }
 
-function renderBox(el, dep) {
-  el.className = `dep-box state-${dep.state}`;
+function renderBox(el, dep, isSoonest) {
+  el.className = `dep-box state-${dep.state}${isSoonest ? ' soonest' : ''}`;
   el.innerHTML =
     `<div class="dep-badge" style="${badgeStyle(dep.route)}">${dep.route}</div>` +
     `<div class="dep-dir">${dep.direction}</div>` +
@@ -113,7 +166,7 @@ export function updateDepartures(data) {
         // force reflow so the transition to the real slot animates
         void box.offsetWidth;
       }
-      renderBox(box, dep);
+      renderBox(box, dep, i === 0);
       box.style.top = boxTop(dir, i, laneHeight) + 'px';
     });
 
