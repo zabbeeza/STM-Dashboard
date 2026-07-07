@@ -132,8 +132,8 @@ async function getDeparturesSimulated() {
 // Best-effort static-schedule fallback: next departures for a stop straight
 // from stop_times.txt (today, ignoring calendar exceptions — good enough as a
 // stopgap when realtime is unavailable). Returns the same raw shape as live.
-function staticDepartures(gtfsIndex, lane, now) {
-  const times = gtfsIndex.timesByStop.get(lane.stop.gtfsStopId);
+function staticDepartures(gtfsIndex, lane, now, stopId) {
+  const times = gtfsIndex.timesByStop.get(stopId);
   if (!times) return [];
   const midnight = new Date(now); midnight.setHours(0, 0, 0, 0);
   const base = midnight.getTime();
@@ -163,10 +163,20 @@ async function getDeparturesLive() {
 
   const gtfsIndex = await gtfsStatic.load(staticUrl);
 
-  // Resolve configured stops → gtfs stop ids (fall back to config gtfsStopId).
+  // Accept EITHER a GTFS stop_id or the public 5-digit stop number (stop_code):
+  // whatever you put in `gtfsStopId`, resolve it to the real stop_id used by the
+  // realtime feed. So the number printed on the bus-stop sign works directly.
+  const resolveStopId = (cfgId) => {
+    if (!cfgId) return null;
+    if (gtfsIndex.stopById.has(cfgId)) return cfgId;
+    const byCode = gtfsIndex.stopByCode.get(cfgId);
+    return byCode ? byCode.stop_id : cfgId;
+  };
+
   const wantStopIds = new Set();
   for (const lane of laneConfig) {
-    if (lane.stop.gtfsStopId) wantStopIds.add(lane.stop.gtfsStopId);
+    const id = resolveStopId(lane.stop.gtfsStopId);
+    if (id) wantStopIds.add(id);
   }
 
   let rtByStop = new Map();
@@ -180,7 +190,7 @@ async function getDeparturesLive() {
   const routeShortById = gtfsIndex.routeById;
 
   const lanes = laneConfig.map((lane) => {
-    const stopId = lane.stop.gtfsStopId;
+    const stopId = resolveStopId(lane.stop.gtfsStopId);
     let preds = (rtByStop.get(stopId) || [])
       .map((p) => {
         const route = routeShortById.get(p.routeId)?.route_short_name || p.routeId;
@@ -189,7 +199,7 @@ async function getDeparturesLive() {
       })
       .filter((p) => lane.routes.includes(p.route) && p.arrivalMs > now - 1000);
     // Fall back to the static schedule when realtime has nothing for this stop.
-    if (!preds.length) preds = staticDepartures(gtfsIndex, lane, now);
+    if (!preds.length) preds = staticDepartures(gtfsIndex, lane, now, stopId);
     return buildLaneOutput(lane, preds, now, { gtfsIndex });
   });
 
