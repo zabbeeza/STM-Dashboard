@@ -88,9 +88,20 @@ function stepLane(lane, now) {
 }
 
 function buildLaneOutput(lane, rawDepartures, now, ctx = {}) {
+  // The realtime feed can list the same bus more than once (repeated trips, or
+  // several predictions for the same route+minute). Drop duplicates so each row
+  // is a distinct bus.
+  const seen = new Set();
   const departures = rawDepartures
     .slice()
     .sort((a, b) => a.arrivalMs - b.arrivalMs)
+    .filter((d) => {
+      const key = `${d.route}@${Math.round(d.arrivalMs / 60_000)}`;
+      if (seen.has(key) || (d.tripId && seen.has(d.tripId))) return false;
+      seen.add(key);
+      if (d.tripId) seen.add(d.tripId);
+      return true;
+    })
     .slice(0, maxDeparturesPerLane)
     .map((d) => {
       const minutes = Math.max(0, Math.round((d.arrivalMs - now) / 60_000));
