@@ -168,24 +168,59 @@ function staticDepartures(gtfsIndex, lane, now, stopId, limit = maxDeparturesPer
 // minute or two apart; treating same-route departures closer than MERGE_GAP_MIN
 // as the same bus removes those. Scheduled trips fill the tail so a lane always
 // shows `count` upcoming buses, however far out they are.
-const MERGE_GAP_MIN = 3;
+// A same-route bus is treated as a duplicate of an earlier one if it arrives
+// within this fraction of the route's own scheduled headway (so a route every
+// 30 min collapses anything within ~13 min, while a rush-hour route every 6 min
+// only collapses within ~3 min). Never below the floor.
+const DUP_WINDOW_FRACTION = 0.45;
+const DUP_WINDOW_FLOOR_MIN = 2;
+
+// Median spacing between scheduled trips = the route's current headway. Times
+// within 90 s are collapsed first so weekday/weekend rows at the same clock time
+// don't distort the estimate.
+function medianHeadwayMs(times) {
+  const uniq = [];
+  for (const t of times.slice().sort((a, b) => a - b)) {
+    if (!uniq.length || t - uniq[uniq.length - 1] > 90_000) uniq.push(t);
+  }
+  if (uniq.length < 2) return null;
+  const gaps = [];
+  for (let i = 1; i < uniq.length; i++) gaps.push(uniq[i] - uniq[i - 1]);
+  gaps.sort((a, b) => a - b);
+  return gaps[Math.floor(gaps.length / 2)];
+}
 
 function mergeDepartures(rtList, schedList, count) {
-  // Prefer the realtime entry for a given trip; add scheduled trips not already
-  // present (keyed by trip id so the same trip is never counted twice).
+  // Per-route de-dup window, derived from the schedule's implied frequency.
+  const schedTimes = new Map();
+  for (const d of schedList) {
+    if (!schedTimes.has(d.route)) schedTimes.set(d.route, []);
+    schedTimes.get(d.route).push(d.arrivalMs);
+  }
+  const windowMs = new Map();
+  for (const [route, times] of schedTimes) {
+    const headway = medianHeadwayMs(times);
+    const win = headway ? headway * DUP_WINDOW_FRACTION : 5 * 60_000;
+    windowMs.set(route, Math.max(DUP_WINDOW_FLOOR_MIN * 60_000, win));
+  }
+
+  // GTFS-RT identifies every trip by trip_id, so each trip appears once; then
+  // add scheduled trips not already present under that same id.
   const byTrip = new Map();
   for (const d of rtList) byTrip.set(d.tripId || `rt-${d.route}-${d.arrivalMs}`, d);
   for (const d of schedList) {
     const key = d.tripId || `sc-${d.route}-${d.arrivalMs}`;
     if (!byTrip.has(key)) byTrip.set(key, d);
   }
+
+  // Soonest first, so the earliest bus of any bunch is always the one kept.
   const sorted = [...byTrip.values()].sort((a, b) => a.arrivalMs - b.arrivalMs);
-  // Collapse same-route buses that fall within MERGE_GAP_MIN of one already kept.
   const lastByRoute = new Map();
   const out = [];
   for (const d of sorted) {
+    const win = windowMs.get(d.route) ?? DUP_WINDOW_FLOOR_MIN * 60_000;
     const last = lastByRoute.get(d.route);
-    if (last != null && Math.abs(d.arrivalMs - last) < MERGE_GAP_MIN * 60_000) continue;
+    if (last != null && d.arrivalMs - last < win) continue; // duplicate/bunched → hide, keep the soonest
     lastByRoute.set(d.route, d.arrivalMs);
     out.push(d);
   }
