@@ -337,12 +337,12 @@ html, body {
 /* Chevrons at the lane tip, drifting in travel direction. */
 .lane-chevrons {
   position: absolute;
-  left: 0; right: 0;
   display: flex; flex-direction: column; align-items: center;
   pointer-events: none;
 }
-.lane[data-dir="W"] .lane-chevrons { top: calc(var(--center, 48%) + 56px); }
-.lane[data-dir="E"] .lane-chevrons { top: calc(var(--center, 48%) - 116px); }
+/* Sit inside the protruding tip: bottom-left for west lanes, top-right for east. */
+.lane[data-dir="W"] .lane-chevrons { left: 34px; top: calc(var(--center, 48%) + 58px); }
+.lane[data-dir="E"] .lane-chevrons { right: 34px; top: calc(var(--center, 48%) - 118px); }
 .chev {
   width: 40px; height: 18px; opacity: 0.5;
 }
@@ -363,19 +363,19 @@ html, body {
 
 /* Per-lane journey ETA labels (outside the trapezoid). */
 .lane-eta {
-  position: absolute; left: 16px; right: 16px;
+  position: absolute; left: 12px; right: 12px;
   color: var(--text-dim);
-  font-size: 15px; letter-spacing: 1px;
+  font-size: 22px; letter-spacing: 1px;
   text-align: center;
 }
-.lane[data-dir="W"] .lane-eta { top: calc(var(--center, 48%) + 158px); }
-.lane[data-dir="E"] .lane-eta { top: calc(var(--center, 48%) - 158px); transform: translateY(-100%); }
+.lane[data-dir="W"] .lane-eta { top: calc(var(--center, 48%) + 168px); }
+.lane[data-dir="E"] .lane-eta { top: calc(var(--center, 48%) - 168px); transform: translateY(-100%); }
 .lane-eta .eta-head {
-  font-size: 13px; font-weight: 700; letter-spacing: 3px; color: #6f7c8d;
-  text-transform: uppercase; margin-bottom: 4px;
+  font-size: 18px; font-weight: 700; letter-spacing: 3px; color: #7c8798;
+  text-transform: uppercase; margin-bottom: 8px;
 }
-.lane-eta .eta-line { font-weight: 700; color: #cfd9e6; white-space: nowrap; }
-.lane-eta .eta-line .eta-dest { color: #aeb9c8; font-weight: 800; letter-spacing: 1.5px; }
+.lane-eta .eta-line { font-size: 25px; font-weight: 700; color: #cfd9e6; white-space: nowrap; line-height: 1.3; }
+.lane-eta .eta-line .eta-dest { color: #b6c1d0; font-weight: 800; letter-spacing: 1.5px; }
 .lane-eta .eta-line .eta-time { color: #eaf0f8; }
 
 /* ─────────────────────────────────────────────────────────────────────────

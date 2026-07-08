@@ -140,22 +140,53 @@ async function getDeparturesSimulated() {
   };
 }
 
-// Best-effort static-schedule fallback: next departures for a stop straight
-// from stop_times.txt (today, ignoring calendar exceptions — good enough as a
-// stopgap when realtime is unavailable). Returns the same raw shape as live.
-function staticDepartures(gtfsIndex, lane, now, stopId, limit = maxDeparturesPerLane) {
+// Montreal-local "service day" info for `now`: the epoch of local midnight, the
+// YYYYMMDD date, and the weekday name — all in the configured timezone, so the
+// schedule lines up regardless of the server's own timezone (e.g. UTC on Replit).
+function montrealDayInfo(now) {
+  const parts = new Intl.DateTimeFormat('en-CA', {
+    timeZone: TZ, hour12: false,
+    year: 'numeric', month: '2-digit', day: '2-digit', weekday: 'long',
+    hour: '2-digit', minute: '2-digit', second: '2-digit',
+  }).formatToParts(new Date(now));
+  const g = (t) => parts.find((x) => x.type === t)?.value;
+  let hour = Number(g('hour')); if (hour === 24) hour = 0;
+  const msSinceMidnight = (hour * 3600 + Number(g('minute')) * 60 + Number(g('second'))) * 1000 + (now % 1000);
+  return { base: now - msSinceMidnight, ymd: `${g('year')}${g('month')}${g('day')}`, weekday: g('weekday').toLowerCase() };
+}
+
+// The set of GTFS service_ids running on the given date (calendar.txt weekday
+// flags + date range, with calendar_dates.txt add/remove exceptions applied).
+function activeServiceIds(gtfsIndex, ymd, weekday) {
+  const active = new Set();
+  for (const c of gtfsIndex.calendar || []) {
+    if (c[weekday] === '1' && (!c.start_date || c.start_date <= ymd) && (!c.end_date || ymd <= c.end_date)) {
+      active.add(c.service_id);
+    }
+  }
+  for (const cd of gtfsIndex.calendarDates || []) {
+    if (cd.date === ymd) {
+      if (cd.exception_type === '1') active.add(cd.service_id);
+      else if (cd.exception_type === '2') active.delete(cd.service_id);
+    }
+  }
+  return active;
+}
+
+// Next scheduled departures for a stop, using only trips whose service runs
+// today (`activeSet`) and Montreal-local midnight (`base`) so times are correct.
+function staticDepartures(gtfsIndex, lane, stopId, base, activeSet, now, limit = maxDeparturesPerLane) {
   const times = gtfsIndex.timesByStop.get(stopId);
   if (!times) return [];
-  const midnight = new Date(now); midnight.setHours(0, 0, 0, 0);
-  const base = midnight.getTime();
   const out = [];
   for (const st of times) {
     const hms = st.departure_time || st.arrival_time;
     if (!hms) continue;
+    const trip = gtfsIndex.tripById.get(st.trip_id);
+    if (activeSet && activeSet.size && trip && !activeSet.has(trip.service_id)) continue; // today only
     const [h, m, s] = hms.split(':').map(Number); // GTFS hours can exceed 24
     const arrivalMs = base + ((h * 3600 + m * 60 + (s || 0)) * 1000);
     if (arrivalMs <= now - 1000) continue;
-    const trip = gtfsIndex.tripById.get(st.trip_id);
     const route = gtfsIndex.routeById.get(trip?.route_id)?.route_short_name;
     if (!route || !lane.routes.includes(route)) continue;
     out.push({ route, arrivalMs, tripId: st.trip_id });
@@ -264,6 +295,10 @@ async function getDeparturesLive() {
 
   const routeShortById = gtfsIndex.routeById;
 
+  // Which schedule applies right now (today's service, Montreal-local midnight).
+  const { base, ymd, weekday } = montrealDayInfo(now);
+  const activeSet = activeServiceIds(gtfsIndex, ymd, weekday);
+
   const lanes = laneConfig.map((lane) => {
     const stopId = resolveStopId(lane.stop.gtfsStopId);
     const rtPreds = (rtByStop.get(stopId) || [])
@@ -273,9 +308,9 @@ async function getDeparturesLive() {
         return { route, arrivalMs: at, tripId: p.tripId };
       })
       .filter((p) => lane.routes.includes(p.route) && p.arrivalMs > now - 1000);
-    // Scheduled upcoming trips: used to de-duplicate realtime and to always
-    // fill the lane to `maxDeparturesPerLane`, however far out the buses are.
-    const schedPreds = staticDepartures(gtfsIndex, lane, now, stopId, maxDeparturesPerLane * 4);
+    // Scheduled upcoming trips (today's service only): used to de-duplicate
+    // realtime and to always fill the lane to `maxDeparturesPerLane`.
+    const schedPreds = staticDepartures(gtfsIndex, lane, stopId, base, activeSet, now, maxDeparturesPerLane * 4);
     const preds = mergeDepartures(rtPreds, schedPreds, maxDeparturesPerLane);
     return buildLaneOutput(lane, preds, now, { gtfsIndex });
   });

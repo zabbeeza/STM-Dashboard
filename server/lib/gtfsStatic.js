@@ -79,6 +79,8 @@ async function build(url) {
   const routes = readTable(zip, 'routes.txt');
   const trips = readTable(zip, 'trips.txt');
   const stopTimes = readTable(zip, 'stop_times.txt');
+  const calendar = readTable(zip, 'calendar.txt');
+  const calendarDates = readTable(zip, 'calendar_dates.txt');
 
   const stopById = new Map();
   const stopByCode = new Map();
@@ -110,7 +112,7 @@ async function build(url) {
     list.sort((a, b) => Number(a.stop_sequence) - Number(b.stop_sequence));
   }
 
-  return { stopById, stopByCode, routeByShortName, routeById, tripById, timesByStop, timesByTrip };
+  return { stopById, stopByCode, routeByShortName, routeById, tripById, timesByStop, timesByTrip, calendar, calendarDates };
 }
 
 export async function load(url) {
